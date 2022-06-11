@@ -5,6 +5,12 @@
   
       },
       "Parameters": {
+        "VpcCIDR": {
+          "Description": "Create a CIDR block for W-F VPC",
+          "Type": "String",
+          "Default": "10.0.0.0/16"
+
+        }
       
       },
       "Mappings": {

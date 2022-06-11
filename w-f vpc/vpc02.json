@@ -1,0 +1,179 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template creates a vpc and two subnet",
+  "Metadata": {},
+  "Parameters": {
+    "VpcCIDR": {
+      "Description": "Create a CIDR block for W-F VPC",
+      "Type": "String",
+      "Default": "10.0.0.0/16"
+    },
+
+    "PubSubCIDR": {
+      "Description": "Create a CIDR block for W-F PubSub",
+      "Type": "String",
+      "Default": "10.0.1.0/28"
+    },
+
+    "PrvSubCIDR": {
+      "Description": "Create a CIDR block for W-F PrvSub",
+      "Type": "String",
+      "Default": "10.0.1.20/28"
+    },
+
+    "wfKeyPair": {
+      "Description": "w-f KeyPair for EC2 Instance",
+      "Type": "String",
+      "Default": "wf-keypair"
+    },
+
+    "wfImageId": {
+      "Description": "NOVA Region Image Id",
+      "Type": "String",
+      "Default": "ami-0022f774911c1d690"
+    },
+
+    "wfInstanceType": {
+      "Description": "W-F EC2 Instance Type",
+      "Type": "String",
+      "Default": "t2.micro"
+    }
+  },
+  "Mappings": {},
+  "Conditions": {},
+  "Resources": {
+    "wfVPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": { "Ref": "VpcCIDR" },
+        "Tags": [{ "Key": "Name", "Value": "wfvpc" }]
+      }
+    },
+
+    "PubSub": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": "us-east-1a",
+        "VpcId": { "Ref": "wfvpc" },
+        "CidrBlock": { "Ref": "PubSubCIDR" },
+        "Tags": [{ "Key": "Name", "Value": "w-f-PubSub" }]
+      }
+    },
+
+    "PrvSub": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": "us-east-1b",
+        "VpcId": { "Ref": "wfvpc" },
+        "CidrBlock": { "Ref": "PrvSubCIDR" },
+        "Tags": [{ "Key": "Name", "Value": "w-f-PrvSub" }]
+      }
+    },
+
+    "wfIGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [{ "Key": "Name", "Value": "wfIGW" }]
+      }
+    },
+    "AttachGateway": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": { "Ref": "wfVPC" },
+        "InternetGatewayId": { "Ref": "wfIGW" }
+      }
+    },
+
+    "wfRT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": { "Ref": "wfVPC" },
+        "Tags": [{ "Key": "Name", "Value": "wfRT" }]
+      }
+    },
+    "wfRouteIGW": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": { "Ref": "wfRT" },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": { "Ref": "wfIGW" }
+      }
+    },
+
+    "wfRTAssocPub": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": "--",
+        "RouteTableId": "--"
+      }
+    },
+    "wfNAT": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": { "Fn::GetAtt": ["EIP", "AllocationId"] },
+        "SubnetId": { "Ref": "PubSub" },
+        "Tags": [{ "Key": "Name", "Value": "wfNAT" }]
+      }
+    },
+    "wfEIP": {
+      "DependsOn": "VPCGatewayAttach",
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": { "Ref": "wfVPC" }
+      }
+    },
+
+    "wfRouteNAT": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": { "Ref": "wfRT" },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": { "Ref": "wfNAT" }
+      }
+    },
+
+    "wfWebSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Allow http to client host",
+        "VpcId": { "Ref": "wfVPC" },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "wfWebServer": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "KeyName": { "Ref": "wfKeyPair" },
+        "DisableApiTermination": "false",
+        "ImageId": { "Ref": "wfImageId" },
+        "InstanceType": { "Ref": "wfInstanceType" },
+        "Monitoring": "false",
+        "SecurityGroupIds": { "Ref": "wfWebSG" },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "wfEC2WebServer"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {}
+}
+  
