@@ -3,6 +3,17 @@
   "Description": "This template creates a vpc and two subnet",
   "Metadata": {},
   "Parameters": {
+    
+    "EnvName": {
+        "Description": "Choose environment:",
+        "Type": "String",
+        "AllowedValues": [
+            "Dev",
+            "Stg"
+          ],  
+        "ConstraintDescription": "Environment must match with specified AllowedValue"
+    },
+    
     "VpcCIDR": {
       "Description": "Create a CIDR block for W-F VPC",
       "Type": "String",
@@ -39,7 +50,22 @@
       "Default": "t2.micro"
     }
   },
-  "Mappings": {},
+  "Mappings": {
+    "AWSInstanceType2Arch" : {
+        "t1.micro"    : { "Arch" : "HVM64"  },
+        "t2.nano"     : { "Arch" : "HVM64"  },
+        "t2.micro"    : { "Arch" : "HVM64"  },
+        "t2.small"    : { "Arch" : "HVM64"  },
+        "t2.medium"   : { "Arch" : "HVM64"  }
+    },
+    "AWSRegionArch2AMI" : {
+        "us-east-1"        : {"HVM64" : "ami-032930428bf1abbff", "HVMG2" : "ami-0aeb704d503081ea6"},
+        "us-east-2"        : {"HVM64" : "ami-027cab9a7bf0155df", "HVMG2" : "NOT_SUPPORTED"},
+        "us-west-1"        : {"HVM64" : "ami-088c153f74339f34c", "HVMG2" : "ami-0a7fc72dc0e51aa77"},
+        "us-west-2"        : {"HVM64" : "ami-01fee56b22f308154", "HVMG2" : "ami-0fe84a5b4563d8f27"}
+      }
+    
+  },
   "Conditions": {},
   "Resources": {
     "wfVPC": {

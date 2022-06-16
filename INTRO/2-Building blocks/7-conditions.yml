@@ -4,10 +4,9 @@
 # Ref: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
 # Ref: https://stackoverflow.com/questions/39086361/multiple-conditions-in-cloud-formation-resource-creation
 ---
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Cloudformation template to create EC2 instance'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Cloudformation template to create EC2 instance"
 Parameters:
-
   Environment:
     Description: "Application environment"
     Type: String
@@ -19,15 +18,15 @@ Parameters:
       - production
 
   InstanceType:
-      Description: WebServer EC2 instance type
-      Type: AWS::SSM::Parameter::Value<String>
-      Default: /jjtech/ec2/instancetype     
-      ConstraintDescription: must be a valid EC2 instance type.
+    Description: WebServer EC2 instance type
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /jjtech/ec2/instancetype #SSM Parameter store value
+    ConstraintDescription: must be a valid EC2 instance type.
 
   AMIID:
     Description: The EC2 AMI id
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
     ConstraintDescription: Must be a valid AMI based on the region
 
   VolumeSize:
@@ -38,32 +37,50 @@ Parameters:
     MaxValue: 100
     ConstraintDescription: must be a number between 8 to 100 Gb
 
-  KeyName:
-    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
-    Type: AWS::EC2::KeyPair::KeyName
-    ConstraintDescription: must be the name of an existing EC2 KeyPair.  
-  
+  # KeyName:
+  #   Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+  #   Type: AWS::EC2::KeyPair::KeyName
+  #   ConstraintDescription: must be the name of an existing EC2 KeyPair.
+
   SecurityGroupPorts:
     Description: Simple Description of a Number Parameter, with MinValue and MaxValue
     Type: Number
-    AllowedValues: 
+    AllowedValues:
       - 80
       - 443
-      - 22    
+      - 22
 
   SSHLocation:
     Description: The IP address range that can be used to SSH to the EC2 instances
     Type: String
-    MinLength: '9'
-    MaxLength: '18'
+    MinLength: "9"
+    MaxLength: "18"
     Default: 0.0.0.0/0
     AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
 
+Mappings:
+  EC2TypeBasedOnEnv:
+    development:
+      instanceType: t2.nano
+      keyPair: dev-keypair
+    testing:
+      instanceType: t2.micro
+      keyPair: test-keypair
+    acceptance:
+      instanceType: t2.small
+      keyPair: acc-keypair
+    production:
+      instanceType: t2.medium
+      keyPair: prod-keypair
+
 Conditions:
-  CreateProdResources: !Equals 
+  CreateProdResources: !Equals
     - !Ref Environment
     - production
+  CreateIAMUser: !Equals
+    - !Ref Environment
+    - acceptance
 
 Resources:
   EC2Instance:
@@ -74,35 +91,48 @@ Resources:
       InstanceType:
         Ref: InstanceType
       SecurityGroups:
-      - Ref: InstanceSecurityGroup
-      KeyName:
-        Ref: KeyName      
+        - Ref: InstanceSecurityGroup
+      KeyName: !FindInMap [EC2TypeBasedOnEnv, !Ref Environment, keyPair]
       BlockDeviceMappings:
-        -
-          DeviceName: /dev/xvda
+        - DeviceName: /dev/xvda
           Ebs:
-            VolumeType: gp2            
+            VolumeType: gp2
             DeleteOnTermination: true
             VolumeSize: !Ref VolumeSize
-  
-  InstanceElasticIP:    
+
+  InstanceElasticIP:
     Type: AWS::EC2::EIP
     Condition: CreateProdResources
     Properties:
       InstanceId: !Ref EC2Instance
-      
-  
+
+  IAMUSERS:
+    Type: AWS::IAM::User
+    Condition: CreateIAMUser
+    Properties:
+      Path: /
+      UserName: Avengers
+      # Groups:
+      #   - groupname
+      # LoginProfile:
+      #   Password:
+      #   PasswordResetRequired: true|false
+      # Policies:
+      #   - policyname
+      # ManagedPolicyArns:
+      #   - managedpolicyarn
+
   InstanceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable SSH access via port 22
       SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: !Ref SecurityGroupPorts
-        ToPort: !Ref SecurityGroupPorts
-        CidrIp:
-          Ref: SSHLocation
-    
+        - IpProtocol: tcp
+          FromPort: !Ref SecurityGroupPorts
+          ToPort: !Ref SecurityGroupPorts
+          CidrIp:
+            Ref: SSHLocation
+
   S3Bucket:
     Type: AWS::S3::Bucket
     Condition: CreateProdResources
@@ -110,26 +140,25 @@ Resources:
 Outputs:
   InstanceDetails:
     Description: "EC2 Instance details"
-    Value: 
-      Ref : EC2Instance
+    Value:
+      Ref: EC2Instance
   AZ:
     Description: Availability Zone of the newly created EC2 instance
-    Value: !GetAtt 
+    Value: !GetAtt
       - EC2Instance
       - AvailabilityZone
   PublicDNS:
     Description: Public DNSName of the newly created EC2 instance
-    Value: !GetAtt 
+    Value: !GetAtt
       - EC2Instance
-      - PublicDnsName      
+      - PublicDnsName
   PublicIP:
     Description: Public IP address of the newly created EC2 instance
-    Value: !GetAtt 
+    Value: !GetAtt
       - EC2Instance
       - PublicIp
   SecurityGroupId:
     Description: Public IP address of the newly created EC2 instance
-    Value: !GetAtt 
+    Value: !GetAtt
       - InstanceSecurityGroup
       - GroupId
-
