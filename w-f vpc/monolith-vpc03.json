@@ -3,7 +3,6 @@
   "Description": "This template creates a vpc and two subnet",
   "Metadata": {},
   "Parameters": {
-    
     "EnvName": {
         "Description": "Choose environment:",
         "Type": "String",

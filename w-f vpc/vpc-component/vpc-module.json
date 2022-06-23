@@ -1,138 +1,165 @@
 {
-    "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "This template creates a vpc and two subnet",
-    "Metadata": {},
-    "Parameters": {
-      
-      "EnvName": {
-          "Description": "Choose environment:",
-          "Type": "String",
-          "AllowedValues": [
-              "Dev",
-              "Stg"
-            ],  
-          "ConstraintDescription": "Environment must match with specified AllowedValue"
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template creates a vpc and two subnet",
+  "Metadata": {},
+  "Parameters": {
+    "EnvName": {
+      "Description": "Choose environment:",
+      "Type": "String",
+      "AllowedValues": ["Dev", "Stg"],
+      "ConstraintDescription": "Environment must match with specified AllowedValue"
+    },
+
+    "VpcCIDR": {
+      "Description": "Create a CIDR block for W-F VPC",
+      "Type": "String",
+      "Default": "10.0.0.0/16"
+    },
+
+    "PubSubCIDR": {
+      "Description": "Create a CIDR block for W-F PubSub",
+      "Type": "String",
+      "Default": "10.0.1.0/28"
+    },
+
+    "PrvSubCIDR": {
+      "Description": "Create a CIDR block for W-F PrvSub",
+      "Type": "String",
+      "Default": "10.0.1.20/28"
+    }
+  },
+
+  "Mappings": {
+    "AWSRegionArch2AMI": {
+      "us-east-1": {
+        "HVM64": "ami-032930428bf1abbff",
+        "HVMG2": "ami-0aeb704d503081ea6"
       },
-      
-      "VpcCIDR": {
-        "Description": "Create a CIDR block for W-F VPC",
-        "Type": "String",
-        "Default": "10.0.0.0/16"
+      "us-east-2": {
+        "HVM64": "ami-027cab9a7bf0155df",
+        "HVMG2": "NOT_SUPPORTED"
       },
-  
-      "PubSubCIDR": {
-        "Description": "Create a CIDR block for W-F PubSub",
-        "Type": "String",
-        "Default": "10.0.1.0/28"
+      "us-west-1": {
+        "HVM64": "ami-088c153f74339f34c",
+        "HVMG2": "ami-0a7fc72dc0e51aa77"
       },
-  
-      "PrvSubCIDR": {
-        "Description": "Create a CIDR block for W-F PrvSub",
-        "Type": "String",
-        "Default": "10.0.1.20/28"
+      "us-west-2": {
+        "HVM64": "ami-01fee56b22f308154",
+        "HVMG2": "ami-0fe84a5b4563d8f27"
+      }
+    }
+  },
+  "Conditions": {},
+  "Resources": {
+    "wfVPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": { "Ref": "VpcCIDR" },
+        "Tags": [{ "Key": "Name", "Value": "wf-vpc" }]
       }
     },
 
-    "Mappings": {
-      "AWSRegionArch2AMI" : {
-          "us-east-1"        : {"HVM64" : "ami-032930428bf1abbff", "HVMG2" : "ami-0aeb704d503081ea6"},
-          "us-east-2"        : {"HVM64" : "ami-027cab9a7bf0155df", "HVMG2" : "NOT_SUPPORTED"},
-          "us-west-1"        : {"HVM64" : "ami-088c153f74339f34c", "HVMG2" : "ami-0a7fc72dc0e51aa77"},
-          "us-west-2"        : {"HVM64" : "ami-01fee56b22f308154", "HVMG2" : "ami-0fe84a5b4563d8f27"}
-        }
-      
+    "PubSub": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": "us-east-1a",
+        "VpcId": { "Ref": "wfVPC" },
+        "CidrBlock": { "Ref": "PubSubCIDR" },
+        "Tags": [{ "Key": "Name", "Value": "w-f-PubSub" }]
+      }
     },
-    "Conditions": {},
-    "Resources": {
-      "wfVPC": {
-        "Type": "AWS::EC2::VPC",
-        "Properties": {
-          "CidrBlock": { "Ref": "VpcCIDR" },
-          "Tags": [{ "Key": "Name", "Value": "wf-vpc" }]
-        }
-      },
-  
-      "PubSub": {
-        "Type": "AWS::EC2::Subnet",
-        "Properties": {
-          "AvailabilityZone": "us-east-1a",
-          "VpcId": { "Ref": "wfVPC" },
-          "CidrBlock": { "Ref": "PubSubCIDR" },
-          "Tags": [{ "Key": "Name", "Value": "w-f-PubSub" }]
-        }
-      },
-  
-      "PrvSub": {
-        "Type": "AWS::EC2::Subnet",
-        "Properties": {
-          "AvailabilityZone": "us-east-1b",
-          "VpcId": { "Ref": "wfVPC" },
-          "CidrBlock": { "Ref": "PrvSubCIDR" },
-          "Tags": [{ "Key": "Name", "Value": "w-f-PrvSub" }]
-        }
-      },
-  
-      "wfIGW": {
-        "Type": "AWS::EC2::InternetGateway",
-        "Properties": {
-          "Tags": [{ "Key": "Name", "Value": "wfIGW" }]
-        }
-      },
-      "AttachGateway": {
-        "Type": "AWS::EC2::VPCGatewayAttachment",
-        "Properties": {
-          "VpcId": { "Ref": "wfVPC" },
-          "InternetGatewayId": { "Ref": "wfIGW" }
-        }
-      },
-  
-      "wfRT": {
-        "Type": "AWS::EC2::RouteTable",
-        "Properties": {
-          "VpcId": { "Ref": "wfVPC" },
-          "Tags": [{ "Key": "Name", "Value": "wfRT" }]
-        }
-      },
-      "wfRouteIGW": {
-        "Type": "AWS::EC2::Route",
-        "Properties": {
-          "RouteTableId": { "Ref": "wfRT" },
-          "DestinationCidrBlock": "0.0.0.0/0",
-          "GatewayId": { "Ref": "wfIGW" }
-        }
-      },
-  
-      "wfRTAssocPub": {
-        "Type": "AWS::EC2::SubnetRouteTableAssociation",
-        "Properties": {
-          "SubnetId": { "Ref": "PubSub" },
-          "RouteTableId": { "Ref": "wfRT" }
-        }
-      },
-  
-      "wfNAT": {
-        "Type": "AWS::EC2::NatGateway",
-        "Properties": {
-          "AllocationId": { "Fn::GetAtt": ["wfEIP", "AllocationId"] },
-          "SubnetId": { "Ref": "PubSub" },
-          "Tags": [{ "Key": "Name", "Value": "wfNAT" }]
-        }
-      },
-  
-      "wfEIP": {
-        "Type": "AWS::EC2::EIP",
-        "Properties": {
-          "Domain": { "Ref": "wfVPC" }
-        }
-      },
-  
-      "wfRouteNAT": {
-        "Type": "AWS::EC2::Route",
-        "Properties": {
-          "RouteTableId": { "Ref": "wfRT" },
-          "DestinationCidrBlock": { "Ref":"PubSubCIDR"},
-          "NatGatewayId": { "Ref": "wfNAT" }
-        }
+
+    "PrvSub": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "AvailabilityZone": "us-east-1b",
+        "VpcId": { "Ref": "wfVPC" },
+        "CidrBlock": { "Ref": "PrvSubCIDR" },
+        "Tags": [{ "Key": "Name", "Value": "w-f-PrvSub" }]
+      }
+    },
+
+    "wfIGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [{ "Key": "Name", "Value": "wfIGW" }]
+      }
+    },
+    "AttachGateway": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": { "Ref": "wfVPC" },
+        "InternetGatewayId": { "Ref": "wfIGW" }
+      }
+    },
+
+    "wfRT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": { "Ref": "wfVPC" },
+        "Tags": [{ "Key": "Name", "Value": "wfRT" }]
+      }
+    },
+    "wfRouteIGW": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": { "Ref": "wfRT" },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": { "Ref": "wfIGW" }
+      }
+    },
+
+    "wfRTAssocPub": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": { "Ref": "PubSub" },
+        "RouteTableId": { "Ref": "wfRT" }
+      }
+    },
+
+    "wfNAT": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": { "Fn::GetAtt": ["wfEIP", "AllocationId"] },
+        "SubnetId": { "Ref": "PubSub" },
+        "Tags": [{ "Key": "Name", "Value": "wfNAT" }]
+      }
+    },
+
+    "wfEIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": { "Ref": "wfVPC" }
+      }
+    },
+
+    "wfRouteNAT": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": { "Ref": "wfRT" },
+        "DestinationCidrBlock": { "Ref": "PubSubCIDR" },
+        "NatGatewayId": { "Ref": "wfNAT" }
       }
     }
+  },
+
+  "Outputs": {
+    "wfVPC": {
+      "Description": "The ID of the VPC",
+      "Value": { "Ref": "wfVPC" },
+      "Export": { "Name": { "Fn::Sub": "${AWS::StackName}-VPCID" } }
+    },
+
+    "PubSub": {
+      "Value": { "Ref": "PubSub" },
+      "Description": "The ID of the Public Subnet",
+      "Export": { "Name": { "Fn::Sub": "${AWS::StackName}-SubnetID" } }
+    },
+
+    "PrvSub": {
+      "Value": { "Ref": "PrvSub" },
+      "Description": "The ID of the Private Subnet",
+      "Export": { "Name": { "Fn::Sub": "${AWS::StackName}-SubnetID" } }
+    }
+  }
 }
